@@ -1,19 +1,15 @@
 import Link from 'next/link';
 import {
-  Activity, AlertTriangle, ArrowRight, CalendarClock, FileText, Search, Settings2,
-  ShieldAlert, UserPlus, Users,
+  AlertTriangle, ArrowRight, BadgeCheck, Boxes, CalendarClock, Coins, FileText, History, PackagePlus,
+  Search, Settings2, ShieldAlert, TrendingUp, Users, Wallet,
 } from 'lucide-react';
+import type { ReactNode } from 'react';
 import { BorderBeam } from '@/components/ui/border-beam';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { CashFlowChart, type CashDay } from '@/components/dashboard/cash-flow-chart';
+import { Reveal } from '@/components/dashboard/reveal';
 import { cn } from '@/lib/utils';
 
 const TZ = 'Asia/Bangkok';
-const NAVY = '#0E2361';
-const RED = '#C8102E';
 
 type RecentCustomer = {
   id: string; full_name: string; phone: string | null; is_blacklisted: boolean; created_at: string;
@@ -34,6 +30,10 @@ export type ExecutiveDashboardProps = {
     interestThisMonth: number;
     due: { id: string; no: string; customer: string; item: string; due: string; amount: number; overdue: boolean }[];
   };
+  cashDays: CashDay[];
+  cashToday: { cashIn: number; cashOut: number; closed: boolean };
+  warehouse: { inStorage: number; forfeited: number; unplaced: number };
+  categories: { name: string; principal: number; count: number }[];
   recentCustomers: RecentCustomer[];
   activity: ActivityRow[];
   settings: Record<string, unknown>;
@@ -45,272 +45,320 @@ const TABLES: Record<string, string> = {
   locations: 'ตำแหน่ง', item_categories: 'ประเภทสินค้า', cash_closings: 'ปิดยอด',
 };
 
+// สีสถานะ ใช้คู่กับชื่อและตัวเลขเสมอ
+const STATUS = [
+  { key: 'active', label: 'ดำเนินอยู่', color: '#4A8CF0' },
+  { key: 'dueSoon', label: 'ครบใน 7 วัน', color: '#E0A100' },
+  { key: 'overdue', label: 'เกินกำหนด', color: '#F97316' },
+  { key: 'redeemed', label: 'ไถ่ถอนแล้ว', color: '#22A06B' },
+  { key: 'forfeited', label: 'หลุดจำนำ', color: '#EE4B6A' },
+] as const;
+
 const baht = (n: number) => new Intl.NumberFormat('th-TH').format(n);
 const shortDate = (iso: string) =>
   new Intl.DateTimeFormat('th-TH', { timeZone: TZ, day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })
     .format(new Date(iso));
 
-function StatCard({
-  icon: Icon, label, value, hint, tone = 'navy', beam = false,
+function Panel({
+  title, icon: Icon, href, linkLabel = 'ดูทั้งหมด', className, children,
 }: {
-  icon: typeof Users; label: string; value: string; hint: string; tone?: 'navy' | 'red'; beam?: boolean;
+  title: string; icon: typeof Users; href?: string; linkLabel?: string; className?: string; children: ReactNode;
 }) {
   return (
-    <Card className="relative overflow-hidden">
-      <CardHeader className="flex-row items-center justify-between space-y-0 pb-2">
-        <CardDescription className="font-medium">{label}</CardDescription>
-        <span className={cn(
-          'flex size-9 items-center justify-center rounded-md',
-          tone === 'red' ? 'bg-destructive/10 text-destructive' : 'bg-primary/10 text-primary',
-        )}>
-          <Icon className="size-4" />
-        </span>
-      </CardHeader>
-      <CardContent>
-        <div className={cn('text-3xl font-bold tabular-nums', tone === 'red' && 'text-destructive')}>{value}</div>
-        <p className="mt-1 text-xs text-muted-foreground">{hint}</p>
-      </CardContent>
-      {beam && <BorderBeam size={120} duration={10} colorFrom={NAVY} colorTo={RED} />}
-    </Card>
+    <section className={cn('rounded-2xl border border-white/10 bg-white/[0.04] p-5 backdrop-blur-sm', className)}>
+      <div className="mb-4 flex items-center justify-between gap-2">
+        <h2 className="m-0 flex items-center gap-2 text-base font-semibold text-white">
+          <Icon className="size-4 text-white/60" /> {title}
+        </h2>
+        {href && (
+          <Link href={href} className="flex items-center gap-1 text-xs text-white/60 hover:text-white">
+            {linkLabel} <ArrowRight className="size-3" />
+          </Link>
+        )}
+      </div>
+      {children}
+    </section>
   );
 }
 
+function Kpi({ label, value, hint, icon: Icon, accent }: { label: string; value: string; hint: string; icon: typeof Users; accent?: boolean }) {
+  return (
+    <div className={cn(
+      'relative overflow-hidden rounded-2xl border p-4 md:p-5',
+      accent ? 'border-white/20 bg-gradient-to-br from-[#1D3A8A]/70 to-[#0B1533]/40' : 'border-white/10 bg-white/[0.04]',
+    )}>
+      <div className="flex items-center justify-between text-sm text-white/60">
+        {label}
+        <Icon className="size-4" />
+      </div>
+      <div className="mt-3 truncate text-2xl font-bold tabular-nums tracking-tight text-white md:text-4xl">{value}</div>
+      <div className="mt-1 line-clamp-2 text-xs text-white/50">{hint}</div>
+      {accent && <BorderBeam size={140} duration={9} colorFrom="#ffffff" colorTo="#EE4B6A" />}
+    </div>
+  );
+}
+
+function Empty({ children }: { children: ReactNode }) {
+  return <p className="rounded-xl border border-dashed border-white/10 py-8 text-center text-sm text-white/40">{children}</p>;
+}
+
 export function ExecutiveDashboard({
-  ownerName, branchName, today, stats, contracts, recentCustomers, activity, settings,
+  ownerName, branchName, today, stats, contracts, cashDays, cashToday, warehouse, categories,
+  recentCustomers, activity, settings,
 }: ExecutiveDashboardProps) {
-  const statusBars = [
-    { label: 'ดำเนินอยู่', value: contracts.byStatus.active, color: NAVY },
-    { label: 'ครบกำหนด 7 วัน', value: contracts.byStatus.dueSoon, color: '#E0A100' },
-    { label: 'เกินกำหนด', value: contracts.byStatus.overdue, color: '#F97316' },
-    { label: 'ไถ่ถอนแล้ว', value: contracts.byStatus.redeemed, color: '#2F855A' },
-    { label: 'หลุดจำนำ', value: contracts.byStatus.forfeited, color: RED },
-  ];
-  const contractTotal = statusBars.reduce((s, c) => s + c.value, 0);
+  const s = contracts.byStatus;
+  const running = s.active + s.dueSoon + s.overdue;
+  const statusTotal = STATUS.reduce((n, x) => n + s[x.key], 0);
+  const follow = s.dueSoon + s.overdue;
+  const catMax = Math.max(1, ...categories.map((c) => c.principal));
+  const in14 = cashDays.reduce((n, d) => n + d.cashIn, 0);
+  const out14 = cashDays.reduce((n, d) => n + d.cashOut, 0);
 
   return (
-    <main className="relative overflow-hidden pb-16">
-      {/* พื้นหลังส่วนหัว */}
-      <div className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-[420px] bg-gradient-to-b from-primary/10 via-primary/5 to-transparent" />
-      <div
-        className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-[420px] opacity-40 [background-image:radial-gradient(hsl(225_75%_22%/0.15)_1px,transparent_1px)] [background-size:20px_20px] [mask-image:linear-gradient(to_bottom,black,transparent)]"
-      />
+    <main className="relative min-h-screen overflow-hidden bg-[#050A1C] pb-20 text-white">
+      {/* แสงไล่สีด้านหลัง สีกรม-แดง-ขาวของร้าน */}
+      <div className="pointer-events-none absolute -right-60 -top-10 z-0 flex flex-col items-end blur-xl">
+        <div className="h-40 w-[60rem] rounded-full bg-gradient-to-b from-[#1D4ED8] to-[#0EA5E9] blur-[6rem]" />
+        <div className="h-40 w-[90rem] rounded-full bg-gradient-to-b from-[#7F1D1D] to-[#C8102E] blur-[6rem]" />
+        <div className="h-40 w-[60rem] rounded-full bg-gradient-to-b from-[#C8102E] to-[#1E3A8A] blur-[6rem]" />
+      </div>
+      <div className="bg-noise pointer-events-none absolute inset-0 z-0 opacity-30" />
 
-      <section className="mx-auto max-w-6xl px-4 pt-10 text-center md:pt-14">
-        <span className="inline-flex items-center gap-2 rounded-full border bg-card px-3 py-1 text-xs text-muted-foreground shadow-sm">
-          <CalendarClock className="size-3.5 text-primary" /> {today} · {branchName}
-        </span>
-        <h1 className="mx-auto mt-5 max-w-3xl text-3xl font-bold leading-tight tracking-tight text-primary md:text-5xl">
-          ภาพรวมร้าน<span className="text-destructive">สุนทรการค้า</span>
-        </h1>
-        <p className="mx-auto mt-3 max-w-xl text-muted-foreground md:text-lg">
-          สวัสดีคุณ{ownerName} ดูลูกค้า สัญญา และความเคลื่อนไหวของร้านได้ในหน้าเดียว
-        </p>
+      <div className="relative z-10">
+        {/* ส่วนหัว */}
+        <section className="mx-auto max-w-6xl px-4 pt-12 text-center md:pt-16">
+          <Reveal>
+            <Link
+              href={contracts.pending ? '/approvals' : '/contracts'}
+              className="mx-auto flex max-w-fit items-center gap-2 rounded-full bg-white/10 px-4 py-2 text-sm text-white backdrop-blur-sm hover:bg-white/15"
+            >
+              <CalendarClock className="size-4 text-white/70" />
+              {today}<span className="hidden sm:inline"> · {branchName}</span>
+              <ArrowRight className="size-4" />
+            </Link>
+          </Reveal>
 
-        <form action="/customers" className="mx-auto mt-7 flex max-w-xl flex-col gap-2 text-left sm:flex-row sm:items-end">
-          <div className="grid flex-1 gap-1.5">
-            <Label htmlFor="q">ค้นหาลูกค้า</Label>
-            <Input id="q" name="q" placeholder="ชื่อหรือเบอร์โทร" className="h-11 bg-card" />
-          </div>
-          <Button type="submit" size="lg" className="gap-2">
-            <Search className="size-4" /> ค้นหา
-          </Button>
-        </form>
-      </section>
+          <Reveal delay={0.08}>
+            <h1 className="mx-auto mt-8 max-w-4xl text-4xl font-bold leading-tight text-white md:text-6xl lg:text-7xl">
+              ภาพรวมร้าน<br className="sm:hidden" />{' '}
+              <span className="whitespace-nowrap bg-gradient-to-r from-white via-rose-200 to-[#EE4B6A] bg-clip-text text-transparent">สุนทรการค้า</span>
+            </h1>
+          </Reveal>
 
-      <section className="mx-auto mt-10 max-w-6xl px-4">
-        <Tabs defaultValue="overview" className="w-full">
-          <div className="-mx-4 flex overflow-x-auto px-4 sm:mx-0 sm:justify-center sm:px-0">
-            <TabsList className="h-auto bg-card p-1 shadow-sm">
-              <TabsTrigger value="overview" className="gap-1.5 px-4 py-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
-                <Activity className="size-4" /> ภาพรวม
-              </TabsTrigger>
-              <TabsTrigger value="customers" className="gap-1.5 px-4 py-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
-                <Users className="size-4" /> ลูกค้า
-              </TabsTrigger>
-              <TabsTrigger value="activity" className="gap-1.5 px-4 py-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
-                <FileText className="size-4" /> ความเคลื่อนไหว
-              </TabsTrigger>
-              <TabsTrigger value="settings" className="gap-1.5 px-4 py-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
-                <Settings2 className="size-4" /> ตั้งค่าสัญญา
-              </TabsTrigger>
-            </TabsList>
-          </div>
+          <Reveal delay={0.16}>
+            <p className="mx-auto mt-6 max-w-2xl text-base text-white/70 md:text-lg">
+              สวัสดีคุณ{ownerName} ตอนนี้มีสัญญาดำเนินอยู่ {baht(running)} สัญญา
+              ยอดเงินต้นคงค้าง ฿{baht(contracts.outstanding)}
+              {follow > 0 ? ` และมีลูกค้าที่ต้องตาม ${baht(follow)} ราย` : ' ไม่มีลูกค้าที่ต้องตาม'}
+            </p>
+          </Reveal>
 
-          <div className="relative mt-6 rounded-xl border bg-card/60 p-3 shadow-lg backdrop-blur md:p-6">
-            <BorderBeam size={260} duration={14} colorFrom={NAVY} colorTo={RED} borderWidth={2} />
+          <Reveal delay={0.24}>
+            <div className="mt-10 flex flex-col items-center justify-center gap-3 sm:flex-row">
+              <Link
+                href="/approvals"
+                className="inline-flex h-12 items-center gap-2 rounded-full bg-white px-8 text-base font-medium text-[#050A1C] hover:bg-white/90"
+              >
+                <BadgeCheck className="size-5" /> อนุมัติวงเงิน
+                {contracts.pending > 0 && (
+                  <span className="rounded-full bg-[#C8102E] px-2 text-xs font-bold leading-5 text-white">{contracts.pending}</span>
+                )}
+              </Link>
+              <Link
+                href="/pawn/new"
+                className="inline-flex h-12 items-center gap-2 rounded-full border border-white/30 px-8 text-base font-medium text-white hover:bg-white/10"
+              >
+                <PackagePlus className="size-5" /> รับจำนำใหม่
+              </Link>
+            </div>
 
-            <TabsContent value="overview" className="mt-0 space-y-6">
-              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-                <StatCard icon={Users} label="ลูกค้าทั้งหมด" value={baht(stats.customers)} hint={`ใหม่เดือนนี้ ${baht(stats.newThisMonth)} คน`} beam />
-                <Link href="/approvals" className="block"><StatCard icon={UserPlus} label="รออนุมัติวงเงิน" value={baht(contracts.pending)} hint="แตะเพื่ออนุมัติ" tone={contracts.pending ? 'red' : 'navy'} /></Link>
-                <StatCard icon={ShieldAlert} label="บัญชีดำ" value={baht(stats.blacklisted)} hint="ระบบเตือนเมื่อลูกค้ามาใหม่" tone="red" />
-                <StatCard icon={FileText} label="ยอดเงินต้นคงค้าง" value={`฿${baht(contracts.outstanding)}`} hint={`ดอกเบี้ยรับเดือนนี้ ฿${baht(contracts.interestThisMonth)}`} />
+            <form action="/contracts" className="mx-auto mt-6 flex max-w-xl items-center gap-2 rounded-full border border-white/15 bg-white/[0.06] p-1.5 pl-5 backdrop-blur-sm focus-within:border-white/40">
+              <input type="hidden" name="f" value="all" />
+              <Search className="size-4 shrink-0 text-white/50" />
+              <input
+                name="q"
+                placeholder="ค้นหาเลขสัญญา ชื่อ หรือเบอร์โทรลูกค้า"
+                aria-label="ค้นหาสัญญาหรือลูกค้า"
+                className="h-10 min-w-0 flex-1 bg-transparent text-sm text-white outline-none placeholder:text-white/40"
+              />
+              <button type="submit" className="h-10 shrink-0 rounded-full bg-white/15 px-5 text-sm font-medium text-white hover:bg-white/25">
+                ค้นหา
+              </button>
+            </form>
+          </Reveal>
+        </section>
+
+        {/* แดชบอร์ด วางแทนรูปภาพหลักของ Hero */}
+        <Reveal delay={0.34} className="relative mx-auto mt-16 w-full max-w-6xl px-4 md:mt-20">
+          <div className="pointer-events-none absolute inset-x-10 inset-y-0 rounded-3xl bg-[#4A8CF0] opacity-20 blur-[8rem]" />
+          <div className="relative overflow-hidden rounded-3xl border border-white/15 bg-[#0B1533]/80 shadow-2xl shadow-black/50 backdrop-blur-xl">
+            <div className="flex items-center gap-2 border-b border-white/10 px-5 py-3">
+              <span className="size-3 rounded-full bg-[#C8102E]" />
+              <span className="size-3 rounded-full bg-white/70" />
+              <span className="size-3 rounded-full bg-[#4A8CF0]" />
+              <span className="ml-3 truncate text-xs text-white/50">แดชบอร์ดผู้บริหาร · {branchName}</span>
+            </div>
+
+            <div className="space-y-4 p-4 md:p-6">
+              {/* ตัวเลขหลัก */}
+              <div className="grid grid-cols-2 gap-3 md:gap-4 lg:grid-cols-4">
+                <Kpi accent icon={Coins} label="ยอดเงินต้นคงค้าง" value={`฿${baht(contracts.outstanding)}`} hint={`จาก ${baht(running)} สัญญาที่ยังไม่ปิด`} />
+                <Kpi icon={TrendingUp} label="ดอกเบี้ยรับเดือนนี้" value={`฿${baht(contracts.interestThisMonth)}`} hint="รวมต่อดอก ลดต้น และไถ่ถอน" />
+                <Kpi icon={FileText} label="รออนุมัติวงเงิน" value={baht(contracts.pending)} hint={contracts.pending ? 'กดปุ่มอนุมัติวงเงินด้านบน' : 'ไม่มีรายการค้าง'} />
+                <Kpi icon={Users} label="ลูกค้าทั้งหมด" value={baht(stats.customers)} hint={`ใหม่เดือนนี้ ${baht(stats.newThisMonth)} คน`} />
               </div>
 
-              <div className="grid gap-4 lg:grid-cols-5">
-                <Card className="lg:col-span-3">
-                  <CardHeader>
-                    <div className="flex items-center justify-between gap-2">
-                      <CardTitle className="text-lg">สถานะสัญญา</CardTitle>
-                      <Link href="/contracts" className="text-xs text-primary hover:underline">ดูทั้งหมด</Link>
-                    </div>
-                    <CardDescription>ทั้งหมด {baht(contractTotal)} สัญญา</CardDescription>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    <div className="flex h-3 overflow-hidden rounded-full bg-muted">
-                      {contractTotal > 0 && statusBars.map((c) => (
-                        <div key={c.label} style={{ width: `${(c.value / contractTotal) * 100}%`, background: c.color }} />
-                      ))}
-                    </div>
-                    <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
-                      {statusBars.map((c) => (
-                        <div key={c.label} className="rounded-lg border p-3">
-                          <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                            <span className="size-2 rounded-full" style={{ background: c.color }} /> {c.label}
-                          </div>
-                          <div className="mt-1 text-xl font-semibold tabular-nums">{baht(c.value)}</div>
-                        </div>
-                      ))}
-                    </div>
-                  </CardContent>
-                </Card>
+              <div className="grid gap-4 lg:grid-cols-3">
+                <Panel title="เงินเข้าออก 14 วันล่าสุด" icon={Wallet} href="/reports" linkLabel="รายงาน" className="lg:col-span-2">
+                  <div className="mb-2 flex flex-wrap gap-x-6 gap-y-1 text-sm">
+                    <span className="text-white/60">รับเข้ารวม <b className="tabular-nums text-white">฿{baht(in14)}</b></span>
+                    <span className="text-white/60">จ่ายออกรวม <b className="tabular-nums text-white">฿{baht(out14)}</b></span>
+                  </div>
+                  <CashFlowChart days={cashDays} />
+                </Panel>
 
-                <Card className="lg:col-span-2">
-                  <CardHeader>
-                    <div className="flex items-center justify-between gap-2">
-                      <CardTitle className="flex items-center gap-2 text-lg">
-                        <AlertTriangle className="size-4 text-destructive" /> ครบกำหนด / เกินกำหนด
-                      </CardTitle>
-                      <Link href="/contracts?f=overdue" className="text-xs text-primary hover:underline">ดูทั้งหมด</Link>
-                    </div>
-                  </CardHeader>
-                  <CardContent className="space-y-2">
-                    {!contracts.due.length && (
-                      <p className="py-6 text-center text-sm text-muted-foreground">ไม่มีสัญญาครบกำหนดหรือเกินกำหนด</p>
-                    )}
+                <Panel title="สถานะสัญญา" icon={FileText} href="/contracts">
+                  <div className="text-3xl font-bold tabular-nums">{baht(statusTotal)} <span className="text-sm font-normal text-white/50">สัญญา</span></div>
+                  <div className="mt-4 flex h-3 gap-0.5 overflow-hidden rounded-full bg-white/10">
+                    {statusTotal > 0 && STATUS.filter((x) => s[x.key] > 0).map((x) => (
+                      <div key={x.key} style={{ width: `${(s[x.key] / statusTotal) * 100}%`, background: x.color }} />
+                    ))}
+                  </div>
+                  <ul className="mt-5 space-y-2.5">
+                    {STATUS.map((x) => (
+                      <li key={x.key} className="flex items-center justify-between text-sm">
+                        <span className="flex items-center gap-2 text-white/70">
+                          <span className="size-2.5 rounded-full" style={{ background: x.color }} /> {x.label}
+                        </span>
+                        <span className="font-semibold tabular-nums text-white">{baht(s[x.key])}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </Panel>
+              </div>
+
+              <div className="grid gap-4 lg:grid-cols-3">
+                <Panel title="ครบกำหนด / เกินกำหนด" icon={AlertTriangle} href="/contracts?f=overdue" className="lg:col-span-2">
+                  {!contracts.due.length && <Empty>ไม่มีสัญญาที่ต้องตาม</Empty>}
+                  <div className="space-y-2">
                     {contracts.due.map((d) => (
-                      <Link key={d.no} href={`/contracts/${d.id}`} className="flex items-center justify-between gap-3 rounded-lg border p-3 hover:bg-accent">
+                      <Link key={d.id} href={`/contracts/${d.id}`} className="flex items-center justify-between gap-3 rounded-xl border border-white/10 bg-white/[0.03] p-3 hover:bg-white/[0.07]">
                         <div className="min-w-0">
-                          <div className="truncate font-medium">{d.customer}</div>
-                          <div className="truncate text-xs text-muted-foreground">{d.item} · {d.no}</div>
+                          <div className="truncate font-medium text-white">{d.customer}</div>
+                          <div className="truncate text-xs text-white/50">{d.no} · {d.item}</div>
                         </div>
                         <div className="shrink-0 text-right">
-                          <div className="font-semibold tabular-nums">฿{baht(d.amount)}</div>
-                          <div className={cn('text-xs', d.overdue ? 'font-semibold text-destructive' : 'text-amber-700')}>{d.due}</div>
+                          <div className="font-semibold tabular-nums text-white">฿{baht(d.amount)}</div>
+                          <div className={cn('text-xs font-medium', d.overdue ? 'text-[#FF8A9B]' : 'text-amber-300')}>{d.due}</div>
                         </div>
                       </Link>
                     ))}
-                  </CardContent>
-                </Card>
-              </div>
-            </TabsContent>
-
-            <TabsContent value="customers" className="mt-0">
-              <Card>
-                <CardHeader className="flex-row items-center justify-between space-y-0">
-                  <div>
-                    <CardTitle className="text-lg">ลูกค้ามาล่าสุด</CardTitle>
-                    <CardDescription>6 รายการล่าสุด</CardDescription>
                   </div>
-                  <Button asChild size="sm" className="gap-1.5">
-                    <Link href="/customers/new"><UserPlus className="size-4" /> เพิ่มลูกค้า</Link>
-                  </Button>
-                </CardHeader>
-                <CardContent className="space-y-2">
-                  {recentCustomers.length === 0 && (
-                    <p className="py-8 text-center text-sm text-muted-foreground">ยังไม่มีลูกค้าในระบบ</p>
-                  )}
-                  {recentCustomers.map((c) => (
-                    <Link
-                      key={c.id}
-                      href={`/customers/${c.id}`}
-                      className="flex items-center justify-between gap-3 rounded-lg border p-3 transition-colors hover:bg-accent"
-                    >
-                      <div className="flex min-w-0 items-center gap-3">
-                        <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-primary/10 font-semibold text-primary">
+                </Panel>
+
+                <div className="grid gap-4">
+                  <Panel title="เงินสดวันนี้" icon={Wallet} href="/cash" linkLabel={cashToday.closed ? 'ปิดยอดแล้ว' : 'ยังไม่ปิดยอด'}>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <div className="text-xs text-white/50">รับเข้า</div>
+                        <div className="text-xl font-semibold tabular-nums">฿{baht(cashToday.cashIn)}</div>
+                      </div>
+                      <div>
+                        <div className="text-xs text-white/50">จ่ายออก</div>
+                        <div className="text-xl font-semibold tabular-nums">฿{baht(cashToday.cashOut)}</div>
+                      </div>
+                    </div>
+                  </Panel>
+                  <Panel title="คลังสินค้า" icon={Boxes} href="/warehouse">
+                    <div className="grid grid-cols-3 gap-2 text-center">
+                      {[
+                        { label: 'ในคลัง', value: warehouse.inStorage },
+                        { label: 'รอขาย', value: warehouse.forfeited },
+                        { label: 'ยังไม่เข้าช่อง', value: warehouse.unplaced, warn: warehouse.unplaced > 0 },
+                      ].map((w) => (
+                        <div key={w.label} className={cn('rounded-xl border p-2.5', w.warn ? 'border-amber-300/40 bg-amber-300/10' : 'border-white/10')}>
+                          <div className="text-xl font-semibold tabular-nums">{baht(w.value)}</div>
+                          <div className="text-[11px] text-white/50">{w.label}</div>
+                        </div>
+                      ))}
+                    </div>
+                  </Panel>
+                </div>
+              </div>
+
+              <div className="grid gap-4 lg:grid-cols-3">
+                <Panel title="เงินต้นตามประเภทสินค้า" icon={Coins}>
+                  {!categories.length && <Empty>ยังไม่มีสัญญาที่ดำเนินอยู่</Empty>}
+                  <ul className="space-y-3">
+                    {categories.map((c) => (
+                      <li key={c.name}>
+                        <div className="mb-1 flex justify-between gap-2 text-sm">
+                          <span className="truncate text-white/80">{c.name} <span className="text-white/40">({baht(c.count)})</span></span>
+                          <span className="shrink-0 tabular-nums text-white">฿{baht(c.principal)}</span>
+                        </div>
+                        <div className="h-2 rounded-full bg-white/10">
+                          <div className="h-2 rounded-full bg-[#4A8CF0]" style={{ width: `${(c.principal / catMax) * 100}%` }} />
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                </Panel>
+
+                <Panel title="ลูกค้ามาล่าสุด" icon={Users} href="/customers">
+                  {!recentCustomers.length && <Empty>ยังไม่มีลูกค้าในระบบ</Empty>}
+                  <div className="space-y-1">
+                    {recentCustomers.map((c) => (
+                      <Link key={c.id} href={`/customers/${c.id}`} className="flex items-center gap-3 rounded-xl p-2 hover:bg-white/[0.06]">
+                        <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-white/10 font-semibold">
                           {c.full_name.slice(0, 1)}
                         </span>
-                        <div className="min-w-0">
-                          <div className="flex items-center gap-2 truncate font-medium">
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-2 truncate text-sm font-medium">
                             {c.full_name}
                             {c.is_blacklisted && (
-                              <span className="rounded bg-destructive px-1.5 py-0.5 text-[10px] font-semibold text-destructive-foreground">บัญชีดำ</span>
+                              <span className="rounded bg-[#C8102E] px-1.5 text-[10px] font-semibold leading-4">บัญชีดำ</span>
                             )}
                           </div>
-                          <div className="text-xs text-muted-foreground">{c.phone ?? 'ไม่มีเบอร์โทร'}</div>
+                          <div className="text-xs text-white/50">{c.phone ?? 'ไม่มีเบอร์โทร'} · {shortDate(c.created_at)}</div>
                         </div>
-                      </div>
-                      <div className="flex shrink-0 items-center gap-2 text-xs text-muted-foreground">
-                        {shortDate(c.created_at)} <ArrowRight className="size-4" />
-                      </div>
-                    </Link>
-                  ))}
-                  <Button asChild variant="outline" className="mt-2 w-full">
-                    <Link href="/customers">ดูลูกค้าทั้งหมด</Link>
-                  </Button>
-                </CardContent>
-              </Card>
-            </TabsContent>
+                      </Link>
+                    ))}
+                  </div>
+                </Panel>
 
-            <TabsContent value="activity" className="mt-0">
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-lg">ความเคลื่อนไหวล่าสุด</CardTitle>
-                  <CardDescription>ใครทำอะไรในระบบ บันทึกอัตโนมัติ แก้ไขไม่ได้</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  {activity.length === 0 && (
-                    <p className="py-8 text-center text-sm text-muted-foreground">ยังไม่มีความเคลื่อนไหว</p>
-                  )}
-                  <ol className="relative space-y-4 border-l pl-5">
+                <Panel title="ความเคลื่อนไหวล่าสุด" icon={History}>
+                  {!activity.length && <Empty>ยังไม่มีความเคลื่อนไหว</Empty>}
+                  <ol className="relative m-0 list-none space-y-3 border-l border-white/10 pl-4">
                     {activity.map((a) => (
                       <li key={a.id} className="relative">
                         <span className={cn(
-                          'absolute -left-[26px] top-1.5 size-2.5 rounded-full ring-4 ring-card',
-                          a.action === 'DELETE' ? 'bg-destructive' : 'bg-primary',
+                          'absolute -left-[21px] top-1.5 size-2.5 rounded-full ring-4 ring-[#0B1533]',
+                          a.action === 'DELETE' ? 'bg-[#EE4B6A]' : 'bg-[#4A8CF0]',
                         )} />
-                        <div className="text-sm">
-                          <span className="font-medium">{a.actor}</span>{' '}
+                        <div className="text-sm text-white/80">
+                          <span className="font-medium text-white">{a.actor}</span>{' '}
                           {ACTIONS[a.action] ?? a.action}{TABLES[a.table] ?? a.table}
-                          {a.subject && <span className="font-medium"> {a.subject}</span>}
+                          {a.subject && <span className="font-medium text-white"> {a.subject}</span>}
                         </div>
-                        <div className="text-xs text-muted-foreground">{shortDate(a.at)}</div>
+                        <div className="text-xs text-white/40">{shortDate(a.at)}</div>
                       </li>
                     ))}
                   </ol>
-                </CardContent>
-              </Card>
-            </TabsContent>
+                </Panel>
+              </div>
 
-            <TabsContent value="settings" className="mt-0">
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-lg">ค่าตั้งค่าสัญญา</CardTitle>
-                  <CardDescription>ค่าชั่วคราว ผู้บริหารปรับได้ภายหลัง</CardDescription>
-                </CardHeader>
-                <CardContent className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-                  {[
-                    { label: 'อายุสัญญา', value: `${settings.contract_term_months ?? '–'} เดือน` },
-                    { label: 'ผ่อนผันหลังครบกำหนด', value: `${settings.grace_period_days ?? '–'} วัน` },
-                    {
-                      label: 'ดอกเบี้ย',
-                      value: `${settings.interest_rate_percent_per_month ?? '–'}% ต่อเดือน`,
-                      hint: settings.interest_calc === 'daily' ? 'คิดตามจำนวนวัน' : undefined,
-                    },
-                    { label: 'กระดาษตั๋ว', value: String(settings.ticket_paper ?? '–') },
-                  ].map((s) => (
-                    <div key={s.label} className="rounded-lg border p-4">
-                      <div className="text-xs text-muted-foreground">{s.label}</div>
-                      <div className="mt-1 text-xl font-semibold">{s.value}</div>
-                      {s.hint && <div className="text-xs text-muted-foreground">{s.hint}</div>}
-                    </div>
-                  ))}
-                </CardContent>
-              </Card>
-            </TabsContent>
+              {/* แถบล่าง ค่าตั้งค่าและบัญชีดำ */}
+              <div className="flex flex-wrap items-center gap-x-6 gap-y-2 rounded-2xl border border-white/10 bg-white/[0.03] px-5 py-3 text-sm text-white/60">
+                <span className="flex items-center gap-1.5"><Settings2 className="size-4" /> ดอกเบี้ย {String(settings.interest_rate_percent_per_month ?? '–')}% ต่อเดือน{settings.interest_calc === 'daily' ? ' (คิดตามวัน)' : ''}</span>
+                <span>อายุสัญญา {String(settings.contract_term_months ?? '–')} เดือน</span>
+                <span>ผ่อนผัน {String(settings.grace_period_days ?? '–')} วัน</span>
+                <span className="flex items-center gap-1.5"><ShieldAlert className="size-4 text-[#FF8A9B]" /> บัญชีดำ {baht(stats.blacklisted)} คน</span>
+                <Link href="/settings" className="ml-auto flex items-center gap-1 text-white/70 hover:text-white">ตั้งค่า <ArrowRight className="size-3" /></Link>
+              </div>
+            </div>
           </div>
-        </Tabs>
-      </section>
+        </Reveal>
+      </div>
     </main>
   );
 }

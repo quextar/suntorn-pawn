@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import {
   Activity, AlertTriangle, ArrowRight, CalendarClock, FileText, Search, Settings2,
-  ShieldAlert, Sparkles, UserPlus, Users,
+  ShieldAlert, UserPlus, Users,
 } from 'lucide-react';
 import { BorderBeam } from '@/components/ui/border-beam';
 import { Button } from '@/components/ui/button';
@@ -27,39 +27,28 @@ export type ExecutiveDashboardProps = {
   branchName: string;
   today: string;
   stats: { customers: number; newThisMonth: number; blacklisted: number };
+  contracts: {
+    byStatus: { active: number; dueSoon: number; overdue: number; redeemed: number; forfeited: number };
+    outstanding: number;
+    pending: number;
+    interestThisMonth: number;
+    due: { id: string; no: string; customer: string; item: string; due: string; amount: number; overdue: boolean }[];
+  };
   recentCustomers: RecentCustomer[];
   activity: ActivityRow[];
   settings: Record<string, unknown>;
 };
 
-// ตัวเลขสัญญาเป็นข้อมูลตัวอย่าง จนกว่าระบบสัญญา (สัปดาห์ที่ 2) จะพร้อม
-const SAMPLE_CONTRACTS = [
-  { label: 'ดำเนินอยู่', value: 128, color: NAVY },
-  { label: 'ใกล้ครบกำหนด', value: 17, color: '#E0A100' },
-  { label: 'ไถ่ถอนแล้ว', value: 342, color: '#2F855A' },
-  { label: 'หลุดจำนำ', value: 21, color: RED },
-];
-const SAMPLE_DUE = [
-  { no: 'PN-0412', customer: 'สมชาย ใจดี', item: 'iPhone 15 Pro', due: 'พรุ่งนี้', amount: 18000 },
-  { no: 'PN-0398', customer: 'วรรณา ศรีสุข', item: 'นาฬิกา Seiko', due: 'อีก 3 วัน', amount: 4500 },
-  { no: 'PN-0377', customer: 'ประเสริฐ ทองมา', item: 'MacBook Air M2', due: 'อีก 6 วัน', amount: 22000 },
-];
-
 const ACTIONS: Record<string, string> = { INSERT: 'เพิ่ม', UPDATE: 'แก้ไข', DELETE: 'ลบ' };
-const TABLES: Record<string, string> = { customers: 'ลูกค้า', settings: 'ค่าตั้งค่า', profiles: 'ผู้ใช้' };
+const TABLES: Record<string, string> = {
+  customers: 'ลูกค้า', settings: 'ค่าตั้งค่า', profiles: 'ผู้ใช้', contracts: 'สัญญา', items: 'สินค้า',
+  locations: 'ตำแหน่ง', item_categories: 'ประเภทสินค้า', cash_closings: 'ปิดยอด',
+};
 
 const baht = (n: number) => new Intl.NumberFormat('th-TH').format(n);
 const shortDate = (iso: string) =>
   new Intl.DateTimeFormat('th-TH', { timeZone: TZ, day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })
     .format(new Date(iso));
-
-function SampleBadge() {
-  return (
-    <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-800">
-      <Sparkles className="size-3" /> ข้อมูลตัวอย่าง
-    </span>
-  );
-}
 
 function StatCard({
   icon: Icon, label, value, hint, tone = 'navy', beam = false,
@@ -87,9 +76,16 @@ function StatCard({
 }
 
 export function ExecutiveDashboard({
-  ownerName, branchName, today, stats, recentCustomers, activity, settings,
+  ownerName, branchName, today, stats, contracts, recentCustomers, activity, settings,
 }: ExecutiveDashboardProps) {
-  const contractTotal = SAMPLE_CONTRACTS.reduce((s, c) => s + c.value, 0);
+  const statusBars = [
+    { label: 'ดำเนินอยู่', value: contracts.byStatus.active, color: NAVY },
+    { label: 'ครบกำหนด 7 วัน', value: contracts.byStatus.dueSoon, color: '#E0A100' },
+    { label: 'เกินกำหนด', value: contracts.byStatus.overdue, color: '#F97316' },
+    { label: 'ไถ่ถอนแล้ว', value: contracts.byStatus.redeemed, color: '#2F855A' },
+    { label: 'หลุดจำนำ', value: contracts.byStatus.forfeited, color: RED },
+  ];
+  const contractTotal = statusBars.reduce((s, c) => s + c.value, 0);
 
   return (
     <main className="relative overflow-hidden pb-16">
@@ -145,10 +141,10 @@ export function ExecutiveDashboard({
 
             <TabsContent value="overview" className="mt-0 space-y-6">
               <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-                <StatCard icon={Users} label="ลูกค้าทั้งหมด" value={baht(stats.customers)} hint="ข้อมูลจริงจากระบบ" beam />
-                <StatCard icon={UserPlus} label="ลูกค้าใหม่เดือนนี้" value={baht(stats.newThisMonth)} hint="นับตั้งแต่วันที่ 1" />
+                <StatCard icon={Users} label="ลูกค้าทั้งหมด" value={baht(stats.customers)} hint={`ใหม่เดือนนี้ ${baht(stats.newThisMonth)} คน`} beam />
+                <Link href="/approvals" className="block"><StatCard icon={UserPlus} label="รออนุมัติวงเงิน" value={baht(contracts.pending)} hint="แตะเพื่ออนุมัติ" tone={contracts.pending ? 'red' : 'navy'} /></Link>
                 <StatCard icon={ShieldAlert} label="บัญชีดำ" value={baht(stats.blacklisted)} hint="ระบบเตือนเมื่อลูกค้ามาใหม่" tone="red" />
-                <StatCard icon={FileText} label="สัญญาค้าง" value="–" hint="เปิดใช้เมื่อระบบสัญญาพร้อม" />
+                <StatCard icon={FileText} label="ยอดเงินต้นคงค้าง" value={`฿${baht(contracts.outstanding)}`} hint={`ดอกเบี้ยรับเดือนนี้ ฿${baht(contracts.interestThisMonth)}`} />
               </div>
 
               <div className="grid gap-4 lg:grid-cols-5">
@@ -156,18 +152,18 @@ export function ExecutiveDashboard({
                   <CardHeader>
                     <div className="flex items-center justify-between gap-2">
                       <CardTitle className="text-lg">สถานะสัญญา</CardTitle>
-                      <SampleBadge />
+                      <Link href="/contracts" className="text-xs text-primary hover:underline">ดูทั้งหมด</Link>
                     </div>
                     <CardDescription>ทั้งหมด {baht(contractTotal)} สัญญา</CardDescription>
                   </CardHeader>
                   <CardContent className="space-y-4">
                     <div className="flex h-3 overflow-hidden rounded-full bg-muted">
-                      {SAMPLE_CONTRACTS.map((c) => (
+                      {contractTotal > 0 && statusBars.map((c) => (
                         <div key={c.label} style={{ width: `${(c.value / contractTotal) * 100}%`, background: c.color }} />
                       ))}
                     </div>
-                    <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-                      {SAMPLE_CONTRACTS.map((c) => (
+                    <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
+                      {statusBars.map((c) => (
                         <div key={c.label} className="rounded-lg border p-3">
                           <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
                             <span className="size-2 rounded-full" style={{ background: c.color }} /> {c.label}
@@ -183,23 +179,26 @@ export function ExecutiveDashboard({
                   <CardHeader>
                     <div className="flex items-center justify-between gap-2">
                       <CardTitle className="flex items-center gap-2 text-lg">
-                        <AlertTriangle className="size-4 text-destructive" /> ครบกำหนดใน 7 วัน
+                        <AlertTriangle className="size-4 text-destructive" /> ครบกำหนด / เกินกำหนด
                       </CardTitle>
-                      <SampleBadge />
+                      <Link href="/contracts?f=overdue" className="text-xs text-primary hover:underline">ดูทั้งหมด</Link>
                     </div>
                   </CardHeader>
                   <CardContent className="space-y-2">
-                    {SAMPLE_DUE.map((d) => (
-                      <div key={d.no} className="flex items-center justify-between gap-3 rounded-lg border p-3">
+                    {!contracts.due.length && (
+                      <p className="py-6 text-center text-sm text-muted-foreground">ไม่มีสัญญาครบกำหนดหรือเกินกำหนด</p>
+                    )}
+                    {contracts.due.map((d) => (
+                      <Link key={d.no} href={`/contracts/${d.id}`} className="flex items-center justify-between gap-3 rounded-lg border p-3 hover:bg-accent">
                         <div className="min-w-0">
                           <div className="truncate font-medium">{d.customer}</div>
                           <div className="truncate text-xs text-muted-foreground">{d.item} · {d.no}</div>
                         </div>
                         <div className="shrink-0 text-right">
                           <div className="font-semibold tabular-nums">฿{baht(d.amount)}</div>
-                          <div className="text-xs text-destructive">{d.due}</div>
+                          <div className={cn('text-xs', d.overdue ? 'font-semibold text-destructive' : 'text-amber-700')}>{d.due}</div>
                         </div>
-                      </div>
+                      </Link>
                     ))}
                   </CardContent>
                 </Card>

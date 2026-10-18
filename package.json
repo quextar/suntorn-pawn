@@ -16,9 +16,12 @@
     "@tailwindcss/postcss": "^4.1.14",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
+    "exceljs": "4.4.0",
     "lucide-react": "^1.59.0",
     "next": "14.2.18",
     "postcss": "^8.5.30",
+    "qr-scanner": "1.4.2",
+    "qrcode": "1.5.4",
     "react": "18.3.1",
     "react-dom": "18.3.1",
     "tailwind-merge": "^3.7.0",
@@ -27,7 +30,9 @@
   },
   "devDependencies": {
     "@types/node": "20.17.10",
+    "@types/qrcode": "1.5.5",
     "@types/react": "18.3.17",
+    "@types/react-dom": "18.3.5",
     "typescript": "5.7.2"
   }
 }

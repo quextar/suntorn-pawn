@@ -1,6 +1,6 @@
 import { redirect } from 'next/navigation';
 import { requireProfile } from '@/lib/auth';
-import { SiteHeader } from '@/components/site-header';
+import { contractOverview } from '@/lib/overview';
 import { ExecutiveDashboard } from '@/components/dashboard/executive-dashboard';
 
 const TZ = 'Asia/Bangkok';
@@ -17,7 +17,7 @@ export default async function DashboardPage() {
   if (profile.role !== 'ceo') redirect('/');
 
   const count = { count: 'exact' as const, head: true };
-  const [branch, total, newThisMonth, blacklisted, recent, activity, settings] = await Promise.all([
+  const [branch, total, newThisMonth, blacklisted, recent, activity, settings, contracts] = await Promise.all([
     supabase.from('branches').select('name').eq('id', profile.branch_id).single(),
     supabase.from('customers').select('id', count),
     supabase.from('customers').select('id', count).gte('created_at', startOfMonthBangkok()),
@@ -27,33 +27,34 @@ export default async function DashboardPage() {
     supabase.from('audit_log').select('id, table_name, action, new_data, old_data, created_at, actor:profiles(full_name)')
       .order('created_at', { ascending: false }).limit(8),
     supabase.from('settings').select('key, value'),
+    contractOverview(supabase),
   ]);
 
   const today = new Intl.DateTimeFormat('th-TH', { timeZone: TZ, dateStyle: 'full' }).format(new Date());
 
   return (
-    <>
-      <SiteHeader name={profile.full_name} isCeo />
-      <ExecutiveDashboard
-        ownerName={profile.full_name}
-        branchName={branch.data?.name ?? 'สาขาหลัก'}
-        today={today}
-        stats={{
-          customers: total.count ?? 0,
-          newThisMonth: newThisMonth.count ?? 0,
-          blacklisted: blacklisted.count ?? 0,
-        }}
-        recentCustomers={recent.data ?? []}
-        activity={(activity.data ?? []).map((a) => ({
-          id: a.id,
-          table: a.table_name,
-          action: a.action,
-          subject: ((a.new_data ?? a.old_data) as { full_name?: string } | null)?.full_name ?? null,
-          actor: (a.actor as unknown as { full_name: string } | null)?.full_name ?? 'ระบบ',
-          at: a.created_at,
-        }))}
-        settings={Object.fromEntries((settings.data ?? []).map((s) => [s.key, s.value]))}
-      />
-    </>
+    <ExecutiveDashboard
+      ownerName={profile.full_name}
+      branchName={branch.data?.name ?? 'สาขาหลัก'}
+      today={today}
+      stats={{
+        customers: total.count ?? 0,
+        newThisMonth: newThisMonth.count ?? 0,
+        blacklisted: blacklisted.count ?? 0,
+      }}
+      recentCustomers={recent.data ?? []}
+      activity={(activity.data ?? []).map((a) => ({
+        id: a.id,
+        table: a.table_name,
+        action: a.action,
+        subject: (({ full_name: n1, contract_no: n2, name: n3, code: n4 }) => n1 ?? n2 ?? n3 ?? n4 ?? null)(
+          ((a.new_data ?? a.old_data) ?? {}) as Record<string, string | undefined>,
+        ),
+        actor: (a.actor as unknown as { full_name: string } | null)?.full_name ?? 'ระบบ',
+        at: a.created_at,
+      }))}
+      contracts={contracts}
+      settings={Object.fromEntries((settings.data ?? []).map((s) => [s.key, s.value]))}
+    />
   );
 }

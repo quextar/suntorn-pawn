@@ -10,12 +10,13 @@ async function signIn(formData: FormData) {
   });
   if (error) {
     // แยกรหัสผิดออกจากต่อฐานข้อมูลไม่ได้ จะได้รู้สาเหตุจริง
-    redirect(`/login?error=${error.status === 400 ? 'credentials' : 'connection'}`);
+    if (error.status === 400) redirect('/login?error=credentials');
+    redirect(`/login?error=connection&detail=${encodeURIComponent(error.message)}`);
   }
   redirect('/');
 }
 
-export default function LoginPage({ searchParams }: { searchParams: { error?: string } }) {
+export default function LoginPage({ searchParams }: { searchParams: { error?: string; detail?: string } }) {
   return (
     <main style={{ maxWidth: 360, margin: '15vh auto', padding: 24, background: '#fff', borderRadius: 12 }}>
       <h1 style={{ color: '#0E2361', marginTop: 0 }}>สุนทรการค้า</h1>
@@ -26,7 +27,7 @@ export default function LoginPage({ searchParams }: { searchParams: { error?: st
           <p style={{ color: '#A00D25', margin: 0 }}>
             {searchParams.error === 'credentials'
               ? 'อีเมลหรือรหัสผ่านไม่ถูกต้อง'
-              : 'เชื่อมต่อฐานข้อมูลไม่ได้ ตรวจค่า Supabase ใน Vercel'}
+              : `เชื่อมต่อฐานข้อมูลไม่ได้ ตรวจค่า Supabase ใน Vercel (${searchParams.detail ?? '-'})`}
           </p>
         )}
         <button style={{ height: 44, background: '#0E2361', color: '#fff', border: 0, borderRadius: 8 }}>เข้าสู่ระบบ</button>

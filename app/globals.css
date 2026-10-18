@@ -173,11 +173,7 @@
   body {
     @apply bg-background text-foreground font-sans;
   }
-  /* หน้าเดิมที่ยังไม่ได้ใช้ Tailwind ให้หัวข้อและลิงก์ยังอ่านง่าย */
-  h1 { @apply text-2xl font-bold my-4; }
-  h2 { @apply text-xl font-semibold my-3; }
-  main a { @apply text-primary underline-offset-4 hover:underline; }
-  main ul { @apply list-disc pl-6; }
+  input[type='checkbox'] { accent-color: var(--primary); }
 }
 
 @keyframes border-beam {
@@ -291,4 +287,8 @@
   0% { background-position: 0% 0%; }
   50% { background-position: 100% 100%; }
   to { background-position: 0% 0%; }
+}
+
+@media print {
+  body { background: white; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
 }

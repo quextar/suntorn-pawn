@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import { createClient } from '@/lib/supabase/server';
 
 export default async function Customers({ searchParams }: { searchParams: { q?: string } }) {
@@ -9,11 +10,12 @@ export default async function Customers({ searchParams }: { searchParams: { q?: 
   return (
     <main style={{ maxWidth: 960, margin: '0 auto', padding: 24 }}>
       <h1 style={{ color: '#0E2361' }}>ลูกค้า</h1>
+      <p><Link href="/customers/new">+ เพิ่มลูกค้า</Link></p>
       <form><input name="q" defaultValue={q} placeholder="ชื่อหรือเบอร์โทร" style={{ height: 44, width: 280 }} /></form>
       <ul>
         {rows?.map((c) => (
           <li key={c.id}>
-            {c.full_name} {c.phone} {c.is_blacklisted && <strong style={{ color: '#C8102E' }}>บัญชีดำ</strong>}
+            <Link href={`/customers/${c.id}`}>{c.full_name}</Link> {c.phone} {c.is_blacklisted && <strong style={{ color: '#C8102E' }}>บัญชีดำ</strong>}
           </li>
         ))}
       </ul>

@@ -52,7 +52,7 @@ export function SiteHeader({ name, isCeo, pendingCount = 0 }: { name: string; is
           <NavLinks items={items} />
         </nav>
         <div className="ml-auto flex shrink-0 items-center gap-2 text-sm">
-          <span className={cn('hidden text-white/80', wide === 'xl' ? '2xl:inline' : 'xl:inline')}>
+          <span className={cn('hidden text-white/80', wide === 'xl' ? 'min-[1600px]:inline' : 'xl:inline')}>
             {name} · {isCeo ? 'ผู้บริหาร' : 'พนักงาน'}
           </span>
           <form action={signOut}>

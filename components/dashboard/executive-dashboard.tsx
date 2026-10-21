@@ -203,7 +203,7 @@ export function ExecutiveDashboard({
               {/* ตัวเลขหลัก */}
               <div className="grid grid-cols-2 gap-3 md:gap-4 lg:grid-cols-4">
                 <Kpi accent icon={Coins} label="ยอดเงินต้นคงค้าง" value={`฿${baht(contracts.outstanding)}`} hint={`จาก ${baht(running)} สัญญาที่ยังไม่ปิด`} />
-                <Kpi icon={TrendingUp} label="ดอกเบี้ยรับเดือนนี้" value={`฿${baht(contracts.interestThisMonth)}`} hint="รวมต่อดอก ลดต้น และไถ่ถอน" />
+                <Kpi icon={TrendingUp} label="ดอกเบี้ยรับเดือนนี้" value={`฿${baht(contracts.interestThisMonth)}`} hint="รวมต่อดอก เพิ่มต้น และไถ่ถอน" />
                 <Kpi icon={FileText} label="รออนุมัติวงเงิน" value={baht(contracts.pending)} hint={contracts.pending ? 'กดปุ่มอนุมัติวงเงินด้านบน' : 'ไม่มีรายการค้าง'} />
                 <Kpi icon={Users} label="ลูกค้าทั้งหมด" value={baht(stats.customers)} hint={`ใหม่เดือนนี้ ${baht(stats.newThisMonth)} คน`} />
               </div>

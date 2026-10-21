@@ -48,6 +48,7 @@ export const TX_KIND: Record<string, string> = {
   loan: 'จ่ายเงินกู้',
   interest: 'ต่อดอก',
   reduce: 'ลดต้น',
+  fee: 'ค่าดำเนินการ',
   add: 'เพิ่มต้น',
   redeem: 'ไถ่ถอน',
   forfeit: 'หลุดจำนำ',

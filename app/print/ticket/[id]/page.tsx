@@ -15,10 +15,10 @@ export default async function Ticket({ params }: { params: { id: string } }) {
   const qr = await qrSvg(`${siteOrigin()}/contracts/${c.id}`);
 
   const Copy = ({ who }: { who: 'customer' | 'shop' }) => (
-    <section className="flex h-[138mm] flex-col border border-zinc-400 p-[7mm] text-[12.5px] leading-snug">
+    <section className="flex h-[134mm] break-inside-avoid flex-col overflow-hidden border border-zinc-400 p-[6mm] text-[14px] leading-snug">
       <div className="flex items-start justify-between gap-4 border-b-2 border-[#0E2361] pb-2">
         <div>
-          <div className="text-xl font-bold text-[#0E2361]">สุนทรการค้า</div>
+          <div className="text-2xl font-bold text-[#0E2361]">สุนทรการค้า</div>
           <div className="text-zinc-600">{c.branch?.name} · ตั๋วจำนำ ({who === 'customer' ? 'ส่วนของลูกค้า' : 'ส่วนของร้าน'})</div>
         </div>
         <div className="flex items-center gap-3 text-right">
@@ -34,7 +34,7 @@ export default async function Ticket({ params }: { params: { id: string } }) {
         <div><span className="text-zinc-500">ผู้จำนำ </span><b>{c.customer.full_name}</b></div>
         <div><span className="text-zinc-500">เลขบัตรประชาชน </span>{who === 'shop' ? c.customer.national_id : maskId(c.customer.national_id)}</div>
         <div><span className="text-zinc-500">โทร </span>{c.customer.phone ?? '–'}</div>
-        <div className="truncate"><span className="text-zinc-500">ที่อยู่ </span>{c.customer.address ?? '–'}</div>
+        <div className="line-clamp-2"><span className="text-zinc-500">ที่อยู่ </span>{c.customer.address ?? '–'}</div>
       </div>
 
       <div className="mt-3 rounded border border-zinc-300 p-2">
@@ -53,19 +53,19 @@ export default async function Ticket({ params }: { params: { id: string } }) {
           ['ครบกำหนด', thDateLong(c.due_date)],
         ].map(([k, v]) => (
           <div key={k} className="rounded bg-zinc-100 p-1.5">
-            <div className="text-[11px] text-zinc-500">{k}</div>
+            <div className="text-[12px] text-zinc-500">{k}</div>
             <div className="font-bold">{v}</div>
           </div>
         ))}
       </div>
 
-      <ol className="mt-3 list-decimal space-y-0.5 pl-5 text-[11.5px] text-zinc-700">
+      <ol className="mt-3 list-decimal space-y-0.5 pl-5 text-[12.5px] text-zinc-700">
         <li>ดอกเบี้ยคิด{c.interest_calc === 'daily' ? 'ตามจำนวนวันจริง' : 'เป็นรายเดือน เศษของเดือนนับเป็นหนึ่งเดือน'} ชำระดอกเบี้ยเพื่อต่อสัญญาได้ทุกเวลา</li>
         <li>หากไม่ไถ่ถอนหรือต่อดอกภายใน {c.grace_days} วันหลังวันครบกำหนด ทรัพย์ที่จำนำจะหลุดเป็นสิทธิ์ของร้าน</li>
         <li>กรุณานำตั๋วนี้และบัตรประชาชนมาทุกครั้งที่ต่อดอกหรือไถ่ถอน</li>
       </ol>
 
-      <div className="mt-auto grid grid-cols-2 gap-10 pt-6 text-center">
+      <div className="mt-auto grid grid-cols-2 gap-10 pt-8 text-center">
         <div><div className="border-t border-dotted border-zinc-500 pt-1">ผู้จำนำ</div></div>
         <div><div className="border-t border-dotted border-zinc-500 pt-1">ผู้รับจำนำ</div></div>
       </div>
@@ -75,12 +75,16 @@ export default async function Ticket({ params }: { params: { id: string } }) {
   return (
     <>
       <div className="mx-auto mb-4 flex w-[210mm] justify-end print:hidden"><PrintButton /></div>
-      <div className="mx-auto w-[210mm] bg-white p-[8mm] shadow-lg print:w-auto print:p-0 print:shadow-none">
+      {/* ทั้งสองส่วนต้องพอดี A4 แผ่นเดียว: 134 + 6 + 134 = 274mm จากพื้นที่ 297 - 16 = 281mm */}
+      <div className="mx-auto h-[297mm] w-[210mm] overflow-hidden bg-white p-[8mm] shadow-lg print:shadow-none">
         <Copy who="customer" />
-        <div className="my-[4mm] border-t border-dashed border-zinc-400 text-center text-[10px] text-zinc-400">ตัดตามรอยประ</div>
+        <div className="flex h-[6mm] items-center gap-2 text-[10px] text-zinc-400">
+          <div className="flex-1 border-t border-dashed border-zinc-400" /> ตัดตามรอยประ <div className="flex-1 border-t border-dashed border-zinc-400" />
+        </div>
         <Copy who="shop" />
       </div>
-      <style>{`@page { size: A4; margin: 8mm; }`}</style>
+      {/* ขอบกระดาษ 0 แล้วเว้นขอบเองข้างใน Chrome จะไม่ใส่หัว/ท้ายกระดาษและไม่ล้นไปหน้า 2 */}
+      <style>{`@page { size: A4; margin: 0; } @media print { html, body { margin: 0; } }`}</style>
     </>
   );
 }

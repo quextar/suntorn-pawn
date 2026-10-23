@@ -58,7 +58,7 @@ export default async function Cash({ searchParams }: { searchParams: { date?: st
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         {[
           ['เงินสดต้นวัน', opening, ''],
-          ['รับเข้า (ดอก/ไถ่ถอน/ลดต้น)', cashIn, 'text-emerald-700'],
+          ['รับเข้า (ดอก/ไถ่ถอน/ค่าดำเนินการ)', cashIn, 'text-emerald-700'],
           ['จ่ายออก (เงินกู้/เพิ่มต้น)', cashOut, 'text-destructive'],
           ['ควรมีในลิ้นชัก', opening + cashIn - cashOut, 'text-primary'],
         ].map(([k, v, cls]) => (

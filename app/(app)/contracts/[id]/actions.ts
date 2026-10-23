@@ -23,8 +23,8 @@ export async function reject(f: FormData) {
 export async function renew(f: FormData) {
   await run(f, 'renew_contract', { p_id: str(f, 'id') }, 'ต่อดอกแล้ว');
 }
-export async function reduce(f: FormData) {
-  await run(f, 'reduce_principal', { p_id: str(f, 'id'), p_amount: num(f, 'amount') }, 'ลดต้นแล้ว');
+export async function fee(f: FormData) {
+  await run(f, 'add_fee', { p_id: str(f, 'id'), p_amount: num(f, 'amount'), p_note: str(f, 'note') }, 'รับค่าดำเนินการแล้ว');
 }
 export async function addPrincipal(f: FormData) {
   await run(f, 'add_principal', { p_id: str(f, 'id'), p_amount: num(f, 'amount') }, 'เพิ่มเงินต้นแล้ว');

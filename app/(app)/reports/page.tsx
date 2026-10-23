@@ -9,7 +9,7 @@ import { Page, PageHeader } from '@/components/page-header';
 
 const EXPORTS = [
   { type: 'contracts', title: 'สัญญา', desc: 'ทุกสัญญาที่สร้างในช่วงวันที่ พร้อมลูกค้า สินค้า และสถานะ' },
-  { type: 'transactions', title: 'รายการเงิน', desc: 'จ่ายเงินกู้ ต่อดอก ลดต้น ไถ่ถอน ในช่วงวันที่' },
+  { type: 'transactions', title: 'รายการเงิน', desc: 'จ่ายเงินกู้ ต่อดอก ค่าดำเนินการ ไถ่ถอน ในช่วงวันที่' },
   { type: 'customers', title: 'ลูกค้า', desc: 'ลูกค้าที่เพิ่มในช่วงวันที่ รวมบัญชีดำ' },
   { type: 'stock', title: 'สต๊อกในคลังตอนนี้', desc: 'ของที่อยู่ในคลังและของหลุดจำนำ พร้อมตำแหน่ง (ไม่ใช้ช่วงวันที่)' },
 ];

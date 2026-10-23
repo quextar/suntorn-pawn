@@ -3,7 +3,7 @@ import { notFound } from 'next/navigation';
 import { CheckCircle2, Clock, MapPin, Printer, Tag, User, XCircle } from 'lucide-react';
 import { requireProfile } from '@/lib/auth';
 import { baht, ITEM_STATUS, thDate, thDateTime, todayTH, TX_KIND } from '@/lib/format';
-import { dueInfo } from '@/lib/contracts';
+import { dueAfterRenew, dueInfo, interestDue } from '@/lib/contracts';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -14,7 +14,7 @@ import { SubmitButton } from '@/components/confirm-button';
 import { Flash } from '@/components/flash';
 import { Page } from '@/components/page-header';
 import { StatusBadge } from '@/components/status-badge';
-import { addPrincipal, approve, cancel, forfeit, moveItem, reduce, redeem, reject, renew } from './actions';
+import { addPrincipal, approve, cancel, fee, forfeit, moveItem, redeem, reject, renew } from './actions';
 
 function Money({ label, value, tone, hint }: { label: string; value: string; tone?: 'red' | 'navy'; hint?: string }) {
   return (
@@ -48,6 +48,8 @@ export default async function ContractPage({ params, searchParams }: { params: {
   const interestAmt = Number(interest?.amount ?? 0);
   const principal = Number(c.principal ?? 0);
   const checklist = Object.entries((c.item.checklist ?? {}) as Record<string, boolean>);
+  const monthly = c.interest_calc === 'monthly';
+  const months = interestDue(c, today).months;
   const canForfeit = c.status === 'active' && (isCeo || due?.pastGrace);
 
   return (
@@ -80,7 +82,10 @@ export default async function ContractPage({ params, searchParams }: { params: {
       {c.status === 'active' && (
         <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
           <Money label="เงินต้น" value={`฿${baht(principal)}`} tone="navy" hint={`ดอกเบี้ย ${c.interest_rate}% ต่อเดือน`} />
-          <Money label="ดอกเบี้ยค้างถึงวันนี้" value={`฿${baht(interestAmt)}`} hint={`${interest?.days ?? 0} วัน`} />
+          <Money
+            label="ดอกเบี้ยถึงวันนี้" value={`฿${baht(interestAmt)}`}
+            hint={monthly ? (months ? `${months} เดือน (${c.interest_rate}% x ${months})` : 'จ่ายล่วงหน้าแล้ว') : `${interest?.days ?? 0} วัน`}
+          />
           <Money label="ยอดไถ่ถอนวันนี้" value={`฿${baht(principal + interestAmt)}`} tone="navy" />
           <Money
             label="ครบกำหนด" value={thDate(c.due_date)} tone={due?.overdue ? 'red' : undefined}
@@ -130,7 +135,7 @@ export default async function ContractPage({ params, searchParams }: { params: {
                   <input type="hidden" name="id" value={c.id} />
                   <div>
                     <div className="font-semibold">ต่อดอก</div>
-                    <div className="text-sm text-muted-foreground">รับดอกเบี้ย ฿{baht(interestAmt)} ขยายครบกำหนดอีก {c.term_months} เดือนนับจากวันนี้</div>
+                    <div className="text-sm text-muted-foreground">รับดอกเบี้ย ฿{baht(interestAmt)} ครบกำหนดใหม่ {thDate(dueAfterRenew(c, today))}</div>
                   </div>
                   <SubmitButton confirm={`รับดอกเบี้ย ${baht(interestAmt)} บาท และต่อสัญญา?`}>รับดอกเบี้ย ฿{baht(interestAmt)}</SubmitButton>
                 </form>
@@ -144,12 +149,13 @@ export default async function ContractPage({ params, searchParams }: { params: {
                     รับเงิน ฿{baht(principal + interestAmt)}
                   </SubmitButton>
                 </form>
-                <form action={reduce} className="grid gap-2 rounded-lg border p-3">
+                <form action={fee} className="grid gap-2 rounded-lg border p-3">
                   <input type="hidden" name="id" value={c.id} />
-                  <div className="font-semibold">ลดต้น</div>
-                  <div className="text-sm text-muted-foreground">รับดอกเบี้ยถึงวันนี้ ฿{baht(interestAmt)} + เงินต้นที่ลด</div>
-                  <Input name="amount" required inputMode="decimal" placeholder="จำนวนเงินต้นที่ลด" className="h-11" />
-                  <SubmitButton variant="outline" confirm="ยืนยันลดต้น?">บันทึกลดต้น</SubmitButton>
+                  <div className="font-semibold">ค่าดำเนินการ</div>
+                  <div className="text-sm text-muted-foreground">รับเงินตามจำนวนที่กรอก ไม่หักเงินต้น วันครบกำหนดเท่าเดิม</div>
+                  <Input name="amount" required inputMode="decimal" placeholder="จำนวนเงิน (บาท)" className="h-11" />
+                  <Input name="note" placeholder="รายละเอียด (ถ้ามี)" />
+                  <SubmitButton variant="outline" confirm="ยืนยันรับค่าดำเนินการ?">บันทึกค่าดำเนินการ</SubmitButton>
                 </form>
                 {isCeo && (
                   <form action={addPrincipal} className="grid gap-2 rounded-lg border p-3">

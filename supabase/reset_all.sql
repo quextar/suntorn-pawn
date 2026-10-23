@@ -14,7 +14,7 @@ drop sequence if exists contract_no_seq;
 drop function if exists create_pawn, decide_contract, renew_contract, reduce_principal, add_principal,
   redeem_contract, forfeit_contract, cancel_contract, move_item, start_stock_count, scan_stock_item,
   close_stock_count, cash_summary, close_cash, contract_interest_due, interest_due, _contract_for_update, _me,
-  today_th cascade;
+  add_fee, _paid_until_after, months_due, today_th cascade;
 drop table if exists audit_log, customers, settings, profiles, branches cascade;
 drop function if exists handle_new_user(), write_audit(), current_role_name(), current_branch() cascade;
 drop type if exists contract_status, user_role cascade;

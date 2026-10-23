@@ -10,7 +10,11 @@ import { Flash } from '@/components/flash';
 import { Empty, Page, PageHeader } from '@/components/page-header';
 import { deleteLocation } from '../actions';
 
-export default async function LocationPage({ params, searchParams }: { params: { id: string }; searchParams: { error?: string; ok?: string } }) {
+export default async function LocationPage(
+  props: { params: Promise<{ id: string }>; searchParams: Promise<{ error?: string; ok?: string }> }
+) {
+  const searchParams = await props.searchParams;
+  const params = await props.params;
   const { supabase, profile } = await requireProfile();
   const { data: loc } = await supabase.from('locations').select('*').eq('id', params.id).single();
   if (!loc) notFound();

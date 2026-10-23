@@ -26,7 +26,11 @@ function Money({ label, value, tone, hint }: { label: string; value: string; ton
   );
 }
 
-export default async function ContractPage({ params, searchParams }: { params: { id: string }; searchParams: { error?: string; ok?: string } }) {
+export default async function ContractPage(
+  props: { params: Promise<{ id: string }>; searchParams: Promise<{ error?: string; ok?: string }> }
+) {
+  const searchParams = await props.searchParams;
+  const params = await props.params;
   const { supabase, profile } = await requireProfile();
   const isCeo = profile.role === 'ceo';
   const { data: c } = await supabase.from('contracts')

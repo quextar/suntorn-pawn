@@ -46,7 +46,8 @@ async function deleteCategory(f: FormData) {
   back('/settings', 'ok', 'ลบประเภทแล้ว');
 }
 
-export default async function Settings({ searchParams }: { searchParams: { error?: string; ok?: string } }) {
+export default async function Settings(props: { searchParams: Promise<{ error?: string; ok?: string }> }) {
+  const searchParams = await props.searchParams;
   const { supabase } = await requireCeo();
   const [{ data: settings }, { data: cats }, { data: users }] = await Promise.all([
     supabase.from('settings').select('key, value'),

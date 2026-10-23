@@ -8,7 +8,7 @@ import { cn } from '@/lib/utils';
 
 async function signOut() {
   'use server';
-  await createClient().auth.signOut();
+  await (await createClient()).auth.signOut();
   redirect('/login');
 }
 

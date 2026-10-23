@@ -5,9 +5,10 @@ import { PrintButton } from '@/components/print-button';
 export const metadata = { title: 'สติกเกอร์ QR' };
 
 // สติกเกอร์ QR สำหรับสินค้า (?items=id,id) หรือช่องเก็บ (?locations=all หรือ id,id)
-export default async function Labels({ searchParams }: { searchParams: { items?: string; locations?: string } }) {
+export default async function Labels(props: { searchParams: Promise<{ items?: string; locations?: string }> }) {
+  const searchParams = await props.searchParams;
   const { supabase } = await requireProfile();
-  const origin = siteOrigin();
+  const origin = await siteOrigin();
   const labels: { key: string; qr: string; title: string; sub: string }[] = [];
 
   if (searchParams.items) {

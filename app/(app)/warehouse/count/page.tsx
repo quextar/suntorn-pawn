@@ -8,7 +8,8 @@ import { Flash } from '@/components/flash';
 import { Empty, Page, PageHeader } from '@/components/page-header';
 import { startCount } from '../actions';
 
-export default async function Counts({ searchParams }: { searchParams: { error?: string; ok?: string } }) {
+export default async function Counts(props: { searchParams: Promise<{ error?: string; ok?: string }> }) {
+  const searchParams = await props.searchParams;
   const { supabase } = await requireProfile();
   const { data: counts } = await supabase.from('stock_counts')
     .select('id, status, expected_count, found_count, started_at, closed_at, by:profiles!stock_counts_started_by_fkey(full_name)')

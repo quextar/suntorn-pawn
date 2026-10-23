@@ -14,7 +14,8 @@ const EXPORTS = [
   { type: 'stock', title: 'สต๊อกในคลังตอนนี้', desc: 'ของที่อยู่ในคลังและของหลุดจำนำ พร้อมตำแหน่ง (ไม่ใช้ช่วงวันที่)' },
 ];
 
-export default async function Reports({ searchParams }: { searchParams: { from?: string; to?: string } }) {
+export default async function Reports(props: { searchParams: Promise<{ from?: string; to?: string }> }) {
+  const searchParams = await props.searchParams;
   const { supabase } = await requireCeo();
   const today = todayTH();
   const from = searchParams.from ?? `${today.slice(0, 8)}01`;

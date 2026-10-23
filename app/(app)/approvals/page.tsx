@@ -9,7 +9,8 @@ import { Flash } from '@/components/flash';
 import { Empty, Page, PageHeader } from '@/components/page-header';
 import { approve, reject } from '../contracts/[id]/actions';
 
-export default async function Approvals({ searchParams }: { searchParams: { error?: string; ok?: string } }) {
+export default async function Approvals(props: { searchParams: Promise<{ error?: string; ok?: string }> }) {
+  const searchParams = await props.searchParams;
   const { supabase } = await requireCeo();
   const { data: rows } = await supabase.from('contracts')
     .select(`id, contract_no, appraised_value, requested_amount, created_at,

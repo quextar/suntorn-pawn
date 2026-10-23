@@ -26,7 +26,8 @@ type Row = {
   customer: { full_name: string; phone: string | null } | null; item: { name: string } | null;
 };
 
-export default async function Contracts({ searchParams }: { searchParams: { f?: string; q?: string } }) {
+export default async function Contracts(props: { searchParams: Promise<{ f?: string; q?: string }> }) {
+  const searchParams = await props.searchParams;
   const { supabase } = await requireProfile();
   const f = searchParams.f ?? 'active';
   const q = searchParams.q?.trim().replace(/[,%()*]/g, '');

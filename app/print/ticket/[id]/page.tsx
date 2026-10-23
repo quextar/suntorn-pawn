@@ -6,13 +6,14 @@ import { PrintButton } from '@/components/print-button';
 
 export const metadata = { title: 'ตั๋วจำนำ' };
 
-export default async function Ticket({ params }: { params: { id: string } }) {
+export default async function Ticket(props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   const { supabase } = await requireProfile();
   const { data: c } = await supabase.from('contracts')
     .select('*, branch:branches(name), customer:customers(full_name, national_id, phone, address), item:items(id, name, brand, model, serial_no, description)')
     .eq('id', params.id).single();
   if (!c || !c.start_date) notFound();
-  const qr = await qrSvg(`${siteOrigin()}/contracts/${c.id}`);
+  const qr = await qrSvg(`${await siteOrigin()}/contracts/${c.id}`);
 
   const Copy = ({ who }: { who: 'customer' | 'shop' }) => (
     <section className="flex h-[134mm] break-inside-avoid flex-col overflow-hidden border border-zinc-400 p-[6mm] text-[14px] leading-snug">

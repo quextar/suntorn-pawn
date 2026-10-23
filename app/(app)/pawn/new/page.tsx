@@ -9,7 +9,10 @@ import { Flash } from '@/components/flash';
 import { Empty, Page, PageHeader } from '@/components/page-header';
 import { PawnForm } from './pawn-form';
 
-export default async function NewPawn({ searchParams }: { searchParams: { customer?: string; q?: string; error?: string; ok?: string } }) {
+export default async function NewPawn(
+  props: { searchParams: Promise<{ customer?: string; q?: string; error?: string; ok?: string }> }
+) {
+  const searchParams = await props.searchParams;
   const { supabase, profile } = await requireProfile();
 
   // ขั้นที่ 1: เลือกลูกค้า

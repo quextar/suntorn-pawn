@@ -7,7 +7,8 @@ import { Input } from '@/components/ui/input';
 import { Empty, Page, PageHeader } from '@/components/page-header';
 import { thDate } from '@/lib/format';
 
-export default async function Customers({ searchParams }: { searchParams: { q?: string } }) {
+export default async function Customers(props: { searchParams: Promise<{ q?: string }> }) {
+  const searchParams = await props.searchParams;
   const { supabase } = await requireProfile();
   const q = searchParams.q?.trim().replace(/[,%()*]/g, '');
   let query = supabase.from('customers')

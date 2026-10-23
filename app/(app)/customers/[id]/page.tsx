@@ -46,9 +46,11 @@ async function updateCustomer(formData: FormData) {
   back(`/customers/${id}`, 'ok', 'แก้ไขข้อมูลลูกค้าแล้ว');
 }
 
-export default async function CustomerPage({
-  params, searchParams,
-}: { params: { id: string }; searchParams: { error?: string; ok?: string; edit?: string } }) {
+export default async function CustomerPage(
+  props: { params: Promise<{ id: string }>; searchParams: Promise<{ error?: string; ok?: string; edit?: string }> }
+) {
+  const searchParams = await props.searchParams;
+  const params = await props.params;
   const { supabase, profile } = await requireProfile();
   const { data: c } = await supabase.from('customers').select('*').eq('id', params.id).single();
   if (!c) notFound();

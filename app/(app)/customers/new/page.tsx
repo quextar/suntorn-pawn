@@ -34,7 +34,8 @@ async function createCustomer(formData: FormData) {
   redirect(next === 'pawn' ? `/pawn/new?customer=${data!.id}` : `/customers/${data!.id}?ok=${encodeURIComponent('บันทึกลูกค้าแล้ว')}`);
 }
 
-export default async function NewCustomer({ searchParams }: { searchParams: { error?: string; next?: string } }) {
+export default async function NewCustomer(props: { searchParams: Promise<{ error?: string; next?: string }> }) {
+  const searchParams = await props.searchParams;
   const { profile } = await requireProfile();
   return (
     <Page narrow>

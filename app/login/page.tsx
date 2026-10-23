@@ -9,7 +9,7 @@ import { BorderBeam } from '@/components/ui/border-beam';
 
 async function signIn(formData: FormData) {
   'use server';
-  const supabase = createClient();
+  const supabase = await createClient();
   const { error } = await supabase.auth.signInWithPassword({
     email: String(formData.get('email')).trim(),
     password: String(formData.get('password')),
@@ -22,7 +22,8 @@ async function signIn(formData: FormData) {
   redirect('/');
 }
 
-export default function LoginPage({ searchParams }: { searchParams: { error?: string; detail?: string } }) {
+export default async function LoginPage(props: { searchParams: Promise<{ error?: string; detail?: string }> }) {
+  const searchParams = await props.searchParams;
   return (
     <main className="flex min-h-screen items-center justify-center bg-gradient-to-b from-primary/15 to-background px-4">
       <Card className="relative w-full max-w-sm overflow-hidden shadow-xl">

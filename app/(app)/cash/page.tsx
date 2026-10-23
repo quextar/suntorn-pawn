@@ -22,7 +22,10 @@ async function closeCash(f: FormData) {
   back(`/cash?date=${date}`, 'ok', 'ปิดยอดแล้ว');
 }
 
-export default async function Cash({ searchParams }: { searchParams: { date?: string; error?: string; ok?: string } }) {
+export default async function Cash(
+  props: { searchParams: Promise<{ date?: string; error?: string; ok?: string }> }
+) {
+  const searchParams = await props.searchParams;
   const { supabase, profile } = await requireProfile();
   const today = todayTH();
   const date = /^\d{4}-\d{2}-\d{2}$/.test(searchParams.date ?? '') ? searchParams.date! : today;

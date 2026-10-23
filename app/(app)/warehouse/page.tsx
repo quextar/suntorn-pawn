@@ -15,7 +15,8 @@ import { addLocations, placeItem } from './actions';
 type ItemRow = { id: string; name: string; status: string; location_id: string | null; contract: { id: string; contract_no: string }[] | { id: string; contract_no: string } | null };
 const contractOf = (it: ItemRow) => (Array.isArray(it.contract) ? it.contract[0] : it.contract);
 
-export default async function Warehouse({ searchParams }: { searchParams: { error?: string; ok?: string } }) {
+export default async function Warehouse(props: { searchParams: Promise<{ error?: string; ok?: string }> }) {
+  const searchParams = await props.searchParams;
   const { supabase } = await requireProfile();
   const [{ data: locations }, { data: items }] = await Promise.all([
     supabase.from('locations').select('id, zone, shelf, slot, code').order('zone').order('shelf').order('slot'),

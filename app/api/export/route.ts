@@ -9,7 +9,7 @@ const thTime = (v: string) => new Intl.DateTimeFormat('th-TH', { timeZone: TZ, d
 
 // ส่งออก Excel (ผู้บริหารเท่านั้น): /api/export?type=contracts|transactions|customers|stock&from=YYYY-MM-DD&to=YYYY-MM-DD
 export async function GET(req: NextRequest) {
-  const supabase = createClient();
+  const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
   const { data: me } = await supabase.from('profiles').select('role').eq('id', user.id).single();

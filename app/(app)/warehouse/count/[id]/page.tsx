@@ -13,7 +13,11 @@ import { CountScanner } from './count-scanner';
 
 type Item = { id: string; name: string; location_id: string | null; contract: { id: string; contract_no: string }[] | { id: string; contract_no: string } | null };
 
-export default async function CountPage({ params, searchParams }: { params: { id: string }; searchParams: { error?: string; ok?: string } }) {
+export default async function CountPage(
+  props: { params: Promise<{ id: string }>; searchParams: Promise<{ error?: string; ok?: string }> }
+) {
+  const searchParams = await props.searchParams;
+  const params = await props.params;
   const { supabase } = await requireProfile();
   const { data: count } = await supabase.from('stock_counts').select('*').eq('id', params.id).single();
   if (!count) notFound();
